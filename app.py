@@ -12,13 +12,9 @@ class BossSelectorApp:
         self.root = root
         self.root.title("Boss Selector")
 
-        # 使用 sys._MEIPASS 处理打包后的路径问题
         if getattr(sys, 'frozen', False):
-            # If the application is run as a bundle, the PyInstaller bootloader
-            # will set the sys.frozen attribute and the app folder can be found in sys._MEIPASS.
             self.boss_dir = os.path.join(sys._MEIPASS, "Boss")
         else:
-            # If the application is run as a script, the app folder will be found in the current directory.
             self.boss_dir = os.path.join(os.getcwd(), "Boss")
 
         self.bosses = [d for d in os.listdir(self.boss_dir) if os.path.isdir(os.path.join(self.boss_dir, d))]
