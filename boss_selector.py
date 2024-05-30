@@ -43,9 +43,9 @@ class BossSelectorApp:
         self.adjust_window_size()
 
     def choose_target_folder(self):
-        self.target_dir = filedialog.askdirectory(title="選擇目標資料夾")
+        self.target_dir = filedialog.askdirectory(title="選擇天堂資料夾")
         if self.target_dir:
-            self.target_dir_label.config(text=f"目標資料夾: {self.target_dir}", fg="green")
+            self.target_dir_label.config(text=f"天堂資料夾: {self.target_dir}", fg="green")
             check_eat_exe(self)
         else:
             self.target_dir_label.config(text="尚未選擇天堂資料夾", fg="red")

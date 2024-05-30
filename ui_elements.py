@@ -45,7 +45,7 @@ def create_buttons(app):
     tk.Button(button_frame, text="取消全選", command=lambda event=False: app.select_all(event)).grid(row=1, column=2,
                                                                                                      padx=10, pady=10)
     tk.Label(button_frame, text="製作人: 九兒").grid(row=2, column=3, padx=10, pady=10, sticky=tk.W)
-    tk.Button(button_frame, text="開始複製", command=app.copy_selected).grid(row=2, column=4, padx=10, pady=10)
+    tk.Button(button_frame, text="開始", command=app.copy_selected).grid(row=2, column=4, padx=10, pady=10)
 
 
 def update_image(app, name):
