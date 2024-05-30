@@ -17,14 +17,20 @@ def create_notebook(app):
     app.image_label = tk.Label(app.root)
     app.image_label.grid(row=2, column=8, columnspan=4, pady=10)
 
-    for index, boss in enumerate(app.bosses):
-        cb = tk.Checkbutton(boss_frame, text=boss, variable=app.selected_bosses[boss], onvalue=1, offvalue=0,
-                            command=lambda b=boss: app.update_image(b))
-        cb.grid(row=index // 4, column=index % 4, padx=5, pady=5, sticky=tk.W)
+    create_checkbuttons(boss_frame, app.bosses, app.selected_bosses, app.update_image)
+    create_checkbuttons(skill_frame, app.skills, app.selected_skills, app.update_image)
 
-    for index, skill in enumerate(app.skills):
-        cb = tk.Checkbutton(skill_frame, text=skill, variable=app.selected_skills[skill], onvalue=1, offvalue=0,
-                            command=lambda s=skill: app.update_image(s))
+
+def create_checkbuttons(frame, items, selected_items, update_func):
+    for index, item in enumerate(items):
+        cb = tk.Checkbutton(
+            frame,
+            text=item,
+            variable=selected_items[item],
+            onvalue=1,
+            offvalue=0,
+            command=lambda i=item: update_func(i)
+        )
         cb.grid(row=index // 4, column=index % 4, padx=5, pady=5, sticky=tk.W)
 
 
