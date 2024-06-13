@@ -80,8 +80,8 @@ class BossSelectorApp:
             var.set(event)
 
     def adjust_window_size(self):
-        initial_width = 800
-        initial_height = 600
+        initial_width = 400
+        initial_height = 500
         total_rows = (len(self.bosses) + 3) // 4
         new_height = max(initial_height, total_rows * 30 + 150)
         new_width = max(initial_width, self.root.winfo_reqwidth() + 20)

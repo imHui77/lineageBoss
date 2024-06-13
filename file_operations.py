@@ -33,4 +33,10 @@ def copy_files_to_sprite(app, selected_bosses, selected_skills):
                     shutil.copy2(s, d)
                     app.progress["value"] += 1
                     app.root.update_idletasks()
+                if item.endswith('.SPR'):
+                    s = os.path.join(src, item)
+                    d = os.path.join(str(app.target_dir) + '\\sprite', item)
+                    shutil.copy2(s, d)
+                    app.progress["value"] += 1
+                    app.root.update_idletasks()
     return total_files

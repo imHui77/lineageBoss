@@ -5,7 +5,7 @@ BOSS明顯化是一款便於管理和顯化BOSS文件的工具。使用者可以
 
 ## Demo
 
-<img src="img/BOSS.png" alt="img" width="400">
+<img src="img/boss.PNG" alt="img" width="400"><img src="img/skill.PNG" alt="img" width="400">
 
 ## 功能
 - 選擇目標資料夾
@@ -28,7 +28,7 @@ BOSS明顯化是一款便於管理和顯化BOSS文件的工具。使用者可以
 
 ## 未來功能
 我們計劃在未來版本中增加以下功能：
-- [ ] 技能明顯化
+- [x] 技能明顯化
 
 請注意，功能更新速度會較慢，敬請期待。
 
