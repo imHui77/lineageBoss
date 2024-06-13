@@ -13,22 +13,29 @@ def check_eat_exe(app):
 def copy_files_to_sprite(app, selected_bosses, selected_skills):
     total_files = 0
     for boss in selected_bosses:
-        src = os.path.join(app.boss_dir, boss, "sprite")
+        src = os.path.join(str(app.boss_dir), boss, "sprite")
         if os.path.exists(src):
             total_files += len([item for item in os.listdir(src) if item.endswith('.spr')])
 
     for skill in selected_skills:
-        src = os.path.join(app.skills_dir, skill, "sprite")
+        src = os.path.join(str(app.skills_dir), skill, "sprite")
         if os.path.exists(src):
             total_files += len([item for item in os.listdir(src) if item.endswith('.spr')])
 
     for d in selected_bosses + selected_skills:
-        src = os.path.join(app.boss_dir if d in selected_bosses else app.skills_dir, d, "sprite")
+        base_dir = app.boss_dir if d in selected_bosses else app.skills_dir
+        src = os.path.join(str(base_dir), d, "sprite")
         if os.path.exists(src):
             for item in os.listdir(src):
                 if item.endswith('.spr'):
                     s = os.path.join(src, item)
-                    d = os.path.join(app.target_dir + '\\sprite', item)
+                    d = os.path.join(str(app.target_dir) + '\\sprite', item)
+                    shutil.copy2(s, d)
+                    app.progress["value"] += 1
+                    app.root.update_idletasks()
+                if item.endswith('.SPR'):
+                    s = os.path.join(src, item)
+                    d = os.path.join(str(app.target_dir) + '\\sprite', item)
                     shutil.copy2(s, d)
                     app.progress["value"] += 1
                     app.root.update_idletasks()

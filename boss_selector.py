@@ -11,11 +11,13 @@ import subprocess
 class BossSelectorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Boss Selector")
+        self.root.title("天堂 明顯化")
 
         self.img_dir = os.path.join(os.getcwd(), "img")
-        self.boss_dir = os.path.join(sys._MEIPASS, "Boss") if getattr(sys, 'frozen', False) else os.path.join(os.getcwd(), "Boss")
-        self.skills_dir = os.path.join(sys._MEIPASS, "skills") if getattr(sys, 'frozen', False) else os.path.join(os.getcwd(), "skills")
+        self.boss_dir = os.path.join(sys._MEIPASS, "Boss") if getattr(sys, 'frozen', False) else os.path.join(
+            os.getcwd(), "Boss")
+        self.skills_dir = os.path.join(sys._MEIPASS, "skills") if getattr(sys, 'frozen', False) else os.path.join(
+            os.getcwd(), "skills")
 
         self.bosses = [d for d in os.listdir(self.boss_dir) if os.path.isdir(os.path.join(self.boss_dir, d))]
         self.skills = [d for d in os.listdir(self.skills_dir) if os.path.isdir(os.path.join(self.skills_dir, d))]
@@ -24,8 +26,6 @@ class BossSelectorApp:
         self.selected_skills = {skill: tk.BooleanVar() for skill in self.skills}
         self.target_dir = None
         self.folders_selected = False
-
-        tk.Label(self.root, text="選擇要出現光柱的BOSS").grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=10)
 
         create_notebook(self)
         create_buttons(self)
@@ -43,9 +43,9 @@ class BossSelectorApp:
         self.adjust_window_size()
 
     def choose_target_folder(self):
-        self.target_dir = filedialog.askdirectory(title="選擇目標資料夾")
+        self.target_dir = filedialog.askdirectory(title="選擇天堂資料夾")
         if self.target_dir:
-            self.target_dir_label.config(text=f"目標資料夾: {self.target_dir}", fg="green")
+            self.target_dir_label.config(text=f"天堂資料夾: {self.target_dir}", fg="green")
             check_eat_exe(self)
         else:
             self.target_dir_label.config(text="尚未選擇天堂資料夾", fg="red")
@@ -80,13 +80,14 @@ class BossSelectorApp:
             var.set(event)
 
     def adjust_window_size(self):
-        initial_width = 800
-        initial_height = 600
+        initial_width = 400
+        initial_height = 500
         total_rows = (len(self.bosses) + 3) // 4
         new_height = max(initial_height, total_rows * 30 + 150)
         new_width = max(initial_width, self.root.winfo_reqwidth() + 20)
 
-        self.root.geometry(f"{new_width}x{new_height}+{int((self.root.winfo_screenwidth() - new_width) / 2)}+{int((self.root.winfo_screenheight() - new_height) / 2)}")
+        self.root.geometry(
+            f"{new_width}x{new_height}+{int((self.root.winfo_screenwidth() - new_width) / 2)}+{int((self.root.winfo_screenheight() - new_height) / 2)}")
 
     def update_image(self, name):
         update_image(self, name)
