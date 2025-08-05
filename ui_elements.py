@@ -8,17 +8,14 @@ def create_notebook(app):
     notebook = ttk.Notebook(app.root)
     notebook.grid(row=1, column=0, columnspan=4, sticky=tk.NSEW)
 
-    boss_frame = tk.Frame(notebook)
-    notebook.add(boss_frame, text="BOSS")
-
-    skill_frame = tk.Frame(notebook)
-    notebook.add(skill_frame, text="技能")
-
     app.image_label = tk.Label(app.root)
     app.image_label.grid(row=2, column=8, columnspan=4, pady=10)
 
-    create_checkbuttons(boss_frame, app.bosses, app.selected_bosses, app.update_image)
-    create_checkbuttons(skill_frame, app.skills, app.selected_skills, app.update_image)
+    # 動態創建頁籤
+    for category_name, items in app.categories.items():
+        frame = tk.Frame(notebook)
+        notebook.add(frame, text=category_name)
+        create_checkbuttons(frame, items, app.selected_items[category_name], app.update_image)
 
 
 def create_checkbuttons(frame, items, selected_items, update_func):
