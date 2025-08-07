@@ -3,7 +3,7 @@ import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
-from ui_elements import create_notebook, create_buttons, update_image
+from ui_elements import create_notebook, create_buttons
 from file_operations import check_eat_exe, copy_files_to_sprite
 import subprocess
 
@@ -125,5 +125,3 @@ class BossSelectorApp:
         self.root.geometry(
             f"{new_width}x{new_height}+{int((self.root.winfo_screenwidth() - new_width) / 2)}+{int((self.root.winfo_screenheight() - new_height) / 2)}")
 
-    def update_image(self, name):
-        update_image(self, name)
