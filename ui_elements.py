@@ -3,6 +3,9 @@ from tkinter import ttk, messagebox
 import os
 from PIL import Image, ImageTk
 
+# 全域變數追蹤目前開啟的預覽視窗
+current_preview_window = None
+
 
 def create_notebook(app):
     notebook = ttk.Notebook(app.root)
@@ -224,7 +227,19 @@ def get_all_images_in_project(app, item_name):
 
 def show_image_popup(app, item_name):
     """顯示圖片彈出視窗"""
+    global current_preview_window
+    
     try:
+        # 關閉前一個預覽視窗
+        if current_preview_window:
+            try:
+                if current_preview_window.winfo_exists():
+                    current_preview_window.destroy()
+            except tk.TclError:
+                # 視窗已經不存在
+                pass
+            current_preview_window = None
+        
         image_paths = get_all_images_in_project(app, item_name)
         
         if not image_paths:
@@ -234,8 +249,10 @@ def show_image_popup(app, item_name):
         # 創建彈出視窗
         popup = tk.Toplevel(app.root)
         popup.title(f"{item_name} - 圖片預覽")
-        popup.geometry("650x550")
         popup.resizable(True, True)
+        
+        # 設定為目前的預覽視窗
+        current_preview_window = popup
         
         # 創建主框架
         main_frame = tk.Frame(popup)
@@ -243,7 +260,7 @@ def show_image_popup(app, item_name):
         
         # 創建圖片顯示區域
         image_label = tk.Label(main_frame, bg="white", relief="sunken", bd=2)
-        image_label.pack(pady=10, fill=tk.BOTH, expand=True)
+        image_label.pack(pady=5, fill=tk.BOTH, expand=True)
         
         # 創建圖片列表和控制按鈕
         control_frame = tk.Frame(main_frame)
@@ -283,20 +300,36 @@ def show_image_popup(app, item_name):
                     filename = os.path.basename(image_path)
                     file_ext = filename.lower().split('.')[-1]
                     
-                    # 更新圖片信息
-                    info_label.config(text=f"圖片 {index + 1}/{len(image_paths)}: {filename}")
+                    # 更新圖片信息（只顯示順序）
+                    info_label.config(text=f"第 {index + 1} 張 / 共 {len(image_paths)} 張")
                     
+                    # 先載入圖片獲取原始尺寸
                     if file_ext == 'gif':
                         # 處理GIF檔案
                         gif_image = Image.open(image_path)
+                        original_width, original_height = gif_image.size
                         frames = []
+                        
+                        # 計算合適的顯示尺寸
+                        screen_width = popup.winfo_screenwidth()
+                        screen_height = popup.winfo_screenheight()
+                        max_width = min(original_width + 100, int(screen_width * 0.6))
+                        max_height = min(original_height + 150, int(screen_height * 0.8))
+                        
+                        # 計算圖片縮放比例
+                        scale_x = (max_width - 100) / original_width if original_width > (max_width - 100) else 1
+                        scale_y = (max_height - 150) / original_height if original_height > (max_height - 150) else 1
+                        scale = min(scale_x, scale_y, 1)  # 不放大，只縮小
+                        
+                        display_width = int(original_width * scale)
+                        display_height = int(original_height * scale)
                         
                         try:
                             while True:
                                 # 調整每一幀的大小
                                 frame = gif_image.copy()
-                                max_width, max_height = 500, 400
-                                frame.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+                                if scale < 1:
+                                    frame = frame.resize((display_width, display_height), Image.Resampling.LANCZOS)
                                 photo_frame = ImageTk.PhotoImage(frame)
                                 frames.append(photo_frame)
                                 gif_image.seek(gif_image.tell() + 1)
@@ -307,17 +340,39 @@ def show_image_popup(app, item_name):
                             current_gif_frames.extend(frames)
                             current_gif_index[0] = 0
                             image_label.config(image=frames[0])
+                            
+                            # 調整視窗大小
+                            popup.geometry(f"{max_width}x{max_height}")
+                            
                             if len(frames) > 1:
                                 animate_gif()
                     else:
                         # 處理靜態圖片
                         image = Image.open(image_path)
-                        max_width, max_height = 500, 400
-                        image.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+                        original_width, original_height = image.size
+                        
+                        # 計算合適的視窗尺寸
+                        screen_width = popup.winfo_screenwidth()
+                        screen_height = popup.winfo_screenheight()
+                        max_width = min(original_width + 100, int(screen_width * 0.6))
+                        max_height = min(original_height + 150, int(screen_height * 0.8))
+                        
+                        # 計算圖片縮放比例
+                        scale_x = (max_width - 100) / original_width if original_width > (max_width - 100) else 1
+                        scale_y = (max_height - 150) / original_height if original_height > (max_height - 150) else 1
+                        scale = min(scale_x, scale_y, 1)  # 不放大，只縮小
+                        
+                        if scale < 1:
+                            display_width = int(original_width * scale)
+                            display_height = int(original_height * scale)
+                            image = image.resize((display_width, display_height), Image.Resampling.LANCZOS)
                         
                         photo = ImageTk.PhotoImage(image)
                         image_label.config(image=photo)
                         image_label.image = photo  # 保持引用
+                        
+                        # 調整視窗大小
+                        popup.geometry(f"{max_width}x{max_height}")
                         
                 except Exception as e:
                     image_label.config(image='', text=f"無法載入圖片: {str(e)}")
@@ -335,7 +390,10 @@ def show_image_popup(app, item_name):
         
         def on_popup_close():
             """視窗關閉時的清理操作"""
+            global current_preview_window
             stop_animation()
+            if current_preview_window == popup:
+                current_preview_window = None
             popup.destroy()
         
         # 創建控制按鈕
@@ -356,17 +414,36 @@ def show_image_popup(app, item_name):
         # 設置關閉事件
         popup.protocol("WM_DELETE_WINDOW", on_popup_close)
         
-        # 載入第一張圖片
+        # 載入第一張圖片以確定視窗尺寸
         load_image(0)
         
         # 讓彈出視窗置於最上層
         popup.transient(app.root)
         popup.focus_set()
         
-        # 居中顯示
+        # 設定視窗位置在主視窗靠右
         popup.update_idletasks()
-        x = (popup.winfo_screenwidth() // 2) - (popup.winfo_width() // 2)
-        y = (popup.winfo_screenheight() // 2) - (popup.winfo_height() // 2)
+        app.root.update_idletasks()
+        
+        # 獲取主視窗的位置和大小
+        main_x = app.root.winfo_x()
+        main_y = app.root.winfo_y()
+        main_width = app.root.winfo_width()
+        main_height = app.root.winfo_height()
+        
+        # 獲取預覽視窗的大小
+        popup_width = popup.winfo_width()
+        popup_height = popup.winfo_height()
+        
+        # 計算預覽視窗位置（主視窗右側）
+        x = main_x + main_width + 10  # 主視窗右側，留10px間距
+        y = main_y  # 與主視窗頂部對齊
+        
+        # 確保視窗不會超出螢幕右邊
+        screen_width = popup.winfo_screenwidth()
+        if x + popup_width > screen_width:
+            x = screen_width - popup_width - 10
+        
         popup.geometry(f"+{x}+{y}")
         
     except Exception as e:
