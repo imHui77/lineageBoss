@@ -2,6 +2,13 @@ import os
 import shutil
 
 
+def get_public_dir(root_dir):
+    public_dir = os.path.join(root_dir, "pubilc")
+    if not os.path.exists(public_dir):
+        public_dir = os.path.join(root_dir, "public")
+    return public_dir
+
+
 def check_eat_exe(app):
     if os.path.isfile(os.path.join(app.target_dir, 'eat.exe')):
         app.check_eat_exe_label.config(text="已找到吃檔程式", fg="green")
@@ -13,10 +20,7 @@ def check_eat_exe(app):
 def copy_files_to_sprite(app, all_selected):
     total_files = 0
     
-    # 確定 public 資料夾路徑
-    public_dir = os.path.join(app.root_dir, "pubilc")
-    if not os.path.exists(public_dir):
-        public_dir = os.path.join(app.root_dir, "public")
+    public_dir = get_public_dir(app.root_dir)
     
     # 計算總檔案數
     for category_name, selected_items in all_selected.items():

@@ -3,8 +3,8 @@ import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
-from ui_elements import create_notebook, create_buttons
-from file_operations import check_eat_exe, copy_files_to_sprite
+from ui_elements import create_notebook, create_buttons, IMAGE_EXTENSIONS
+from file_operations import check_eat_exe, copy_files_to_sprite, get_public_dir
 import subprocess
 
 
@@ -18,7 +18,8 @@ class BossSelectorApp:
         # 動態掃描資料夾邏輯
         self.root_dir = sys._MEIPASS if getattr(sys, 'frozen', False) else os.getcwd()
         self.categories = self.scan_categories()
-        
+        self.items_with_images = self._scan_items_with_images()
+
         # 動態創建選擇變數
         self.selected_items = {}
         for category_name, items in self.categories.items():
@@ -26,6 +27,7 @@ class BossSelectorApp:
         
         self.target_dir = None
         self.folders_selected = False
+        self.preview_window = None
 
         create_notebook(self)
         create_buttons(self)
@@ -46,11 +48,7 @@ class BossSelectorApp:
         """動態掃描 pubilc 資料夾下的所有類別資料夾"""
         categories = {}
         
-        # 掃描 pubilc 資料夾下的所有子資料夾
-        public_dir = os.path.join(self.root_dir, "pubilc")  # 使用你的資料夾名稱
-        if not os.path.exists(public_dir):
-            # 如果 pubilc 不存在，嘗試 public
-            public_dir = os.path.join(self.root_dir, "public")
+        public_dir = get_public_dir(self.root_dir)
         
         if os.path.exists(public_dir):
             try:
@@ -68,6 +66,21 @@ class BossSelectorApp:
                 pass
         
         return categories
+
+    def _scan_items_with_images(self):
+        """一次性掃描所有含有圖片的項目名稱，避免 UI 構建時對每個項目重複 walk。"""
+        public_dir = get_public_dir(self.root_dir)
+        result = set()
+        for category_name, items in self.categories.items():
+            for item in items:
+                item_path = os.path.join(public_dir, category_name, item)
+                if not os.path.exists(item_path):
+                    continue
+                for root, dirs, files in os.walk(item_path):
+                    if any(os.path.splitext(f.lower())[1] in IMAGE_EXTENSIONS for f in files):
+                        result.add(item)
+                        break
+        return result
 
     def choose_target_folder(self):
         self.target_dir = filedialog.askdirectory(title="選擇天堂資料夾")
