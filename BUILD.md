@@ -72,19 +72,50 @@ build.bat release
 
 ## 資源資料夾
 
-Rust 版不再使用 PyInstaller 打包資源。請將 `pubilc/` 或 `public/` 放在 exe 同一層：
+Rust 版不再使用 PyInstaller 打包資源。請將 `pubilc/` 或 `public/` 放在 exe 同一層。
+
+**開發時**（原始名稱）：
 
 ```text
-dist/
-└── LineageBossVisualization/
-    ├── LineageBossVisualization.exe
-    └── pubilc/
-        ├── BOSS/
-        ├── skills/
-        └── other/
+pubilc/
+├── Boss/
+│   ├── 奧塔/
+│   └── 不死鳥/
+├── 技能/
+└── 其他/
 ```
 
-程式啟動時會優先找 `pubilc/`，找不到時改找 `public/`。
+**發布時**（`build.bat` 會自動混淆）：
+
+```text
+dist/LineageBossVisualization/
+├── LineageBossVisualization.exe
+└── pubilc/
+    ├── manifest.bin           （AES-256-GCM 加密對照表）
+    ├── 6a6ac8386005b00f/      （原 Boss）
+    │   ├── 5fb7556d3a5c2f2d/  （原 奧塔）
+    │   └── b6fd957976a01965/  （原 不死鳥）
+    └── ...
+```
+
+程式啟動時會優先找 `pubilc/`，找不到時改找 `public/`。若同層存在 `manifest.bin`，會用嵌入 exe 的 AES key 解密以將 hash 還原為中文名稱顯示。
+
+## 混淆工具
+
+`obfuscate.exe` 在 `target/release/` 下，預設 dry-run：
+
+```bat
+:: 預覽（不改動磁碟）
+target\release\obfuscate.exe <目錄>
+
+:: 實際混淆
+target\release\obfuscate.exe <目錄> --apply
+
+:: 還原（依 manifest.bin）
+target\release\obfuscate.exe <目錄> --apply --reverse
+```
+
+`build.bat` 已自動在複製到 dist 後跑 `--apply`，原始 `pubilc/` 不會被動到。
 
 ## 支援的檔案類型
 

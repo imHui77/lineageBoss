@@ -4,17 +4,21 @@ use std::{
     process::Command,
 };
 
+use crate::obfuscation::{self, Manifest};
+
 pub const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "bmp", "webp"];
 
 #[derive(Clone, Debug)]
 pub struct Category {
-    pub name: String,
+    pub display_name: String,
+    pub disk_name: String,
     pub items: Vec<Item>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Item {
-    pub name: String,
+    pub display_name: String,
+    pub disk_name: String,
     pub checked: bool,
     pub has_images: bool,
 }
@@ -50,11 +54,16 @@ pub fn get_public_dir(root_dir: &Path) -> PathBuf {
     }
 }
 
+fn manifest_path(root_dir: &Path) -> PathBuf {
+    get_public_dir(root_dir).join(obfuscation::MANIFEST_FILENAME)
+}
+
 pub fn scan_categories(root_dir: &Path) -> Vec<Category> {
     let public_dir = get_public_dir(root_dir);
-    let mut categories = Vec::new();
+    let manifest = obfuscation::load_manifest(&manifest_path(root_dir));
 
-    let Ok(entries) = fs::read_dir(public_dir) else {
+    let mut categories = Vec::new();
+    let Ok(entries) = fs::read_dir(&public_dir) else {
         return categories;
     };
 
@@ -64,52 +73,83 @@ pub fn scan_categories(root_dir: &Path) -> Vec<Category> {
             continue;
         }
 
+        let disk_name = file_name(&path);
+        let Some(display_name) = resolve_category_name(&disk_name, manifest.as_ref()) else {
+            continue;
+        };
+
         let mut items = Vec::new();
         if let Ok(subentries) = fs::read_dir(&path) {
             for subentry in subentries.flatten() {
                 let item_path = subentry.path();
-                if item_path.is_dir() && !is_hidden(&item_path) {
-                    items.push(Item {
-                        name: file_name(&item_path),
-                        checked: false,
-                        has_images: contains_image(&item_path),
-                    });
+                if !item_path.is_dir() || is_hidden(&item_path) {
+                    continue;
                 }
+
+                let item_disk = file_name(&item_path);
+                let Some(item_display) =
+                    resolve_item_name(&disk_name, &item_disk, manifest.as_ref())
+                else {
+                    continue;
+                };
+
+                items.push(Item {
+                    display_name: item_display,
+                    disk_name: item_disk,
+                    checked: false,
+                    has_images: contains_image(&item_path),
+                });
             }
         }
 
         if !items.is_empty() {
-            items.sort_by(|a, b| a.name.cmp(&b.name));
+            items.sort_by(|a, b| a.display_name.cmp(&b.display_name));
             categories.push(Category {
-                name: file_name(&path),
+                display_name,
+                disk_name,
                 items,
             });
         }
     }
 
-    categories.sort_by(|a, b| a.name.cmp(&b.name));
+    categories.sort_by(|a, b| a.display_name.cmp(&b.display_name));
     categories
+}
+
+fn resolve_category_name(disk_name: &str, manifest: Option<&Manifest>) -> Option<String> {
+    match manifest {
+        Some(m) => m.categories.get(disk_name).map(|entry| entry.name.clone()),
+        None => Some(disk_name.to_owned()),
+    }
+}
+
+fn resolve_item_name(
+    category_disk: &str,
+    item_disk: &str,
+    manifest: Option<&Manifest>,
+) -> Option<String> {
+    match manifest {
+        Some(m) => m
+            .categories
+            .get(category_disk)
+            .and_then(|c| c.items.get(item_disk))
+            .cloned(),
+        None => Some(item_disk.to_owned()),
+    }
 }
 
 pub fn image_paths_for_item(
     root_dir: &Path,
-    categories: &[Category],
-    item_name: &str,
+    category_disk_name: &str,
+    item_disk_name: &str,
 ) -> Vec<PathBuf> {
-    let public_dir = get_public_dir(root_dir);
-    for category in categories {
-        if !category.items.iter().any(|item| item.name == item_name) {
-            continue;
-        }
-
-        let item_dir = public_dir.join(&category.name).join(item_name);
-        let mut paths = Vec::new();
-        collect_images(&item_dir, &mut paths);
-        paths.sort();
-        return paths;
-    }
-
-    Vec::new()
+    let item_dir = get_public_dir(root_dir)
+        .join(category_disk_name)
+        .join(item_disk_name);
+    let mut paths = Vec::new();
+    collect_images(&item_dir, &mut paths);
+    paths.sort();
+    paths
 }
 
 pub fn check_eat_exe(target_dir: &Path) -> bool {
@@ -274,6 +314,8 @@ fn is_hidden(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::obfuscation::{CategoryEntry, MANIFEST_VERSION, Manifest, hash_name, save_manifest};
+    use std::collections::BTreeMap;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -288,8 +330,8 @@ mod tests {
     }
 
     #[test]
-    fn scans_categories_and_marks_items_with_preview_images() {
-        let root = temp_root("scans_categories");
+    fn scans_categories_without_manifest_uses_disk_names() {
+        let root = temp_root("scans_without_manifest");
         let item = root.join("public").join("BOSS").join("不死鳥");
         fs::create_dir_all(item.join("sprite")).unwrap();
         fs::write(item.join("preview.png"), []).unwrap();
@@ -297,16 +339,55 @@ mod tests {
         let categories = scan_categories(&root);
 
         assert_eq!(categories.len(), 1);
-        assert_eq!(categories[0].name, "BOSS");
-        assert_eq!(categories[0].items[0].name, "不死鳥");
+        assert_eq!(categories[0].display_name, "BOSS");
+        assert_eq!(categories[0].disk_name, "BOSS");
+        assert_eq!(categories[0].items[0].display_name, "不死鳥");
+        assert_eq!(categories[0].items[0].disk_name, "不死鳥");
         assert!(categories[0].items[0].has_images);
 
         fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
+    fn scans_categories_with_manifest_resolves_display_names() {
+        let root = temp_root("scans_with_manifest");
+        let category_hash = hash_name("BOSS");
+        let item_hash = hash_name("不死鳥");
+        let item = root.join("public").join(&category_hash).join(&item_hash);
+        fs::create_dir_all(item.join("sprite")).unwrap();
+        fs::write(item.join("preview.png"), []).unwrap();
+
+        let mut manifest = Manifest {
+            version: MANIFEST_VERSION,
+            categories: BTreeMap::new(),
+        };
+        manifest.categories.insert(
+            category_hash.clone(),
+            CategoryEntry {
+                name: "BOSS".to_owned(),
+                items: BTreeMap::from([(item_hash.clone(), "不死鳥".to_owned())]),
+            },
+        );
+        save_manifest(
+            &root.join("public").join(obfuscation::MANIFEST_FILENAME),
+            &manifest,
+        )
+        .unwrap();
+
+        let categories = scan_categories(&root);
+
+        assert_eq!(categories.len(), 1);
+        assert_eq!(categories[0].display_name, "BOSS");
+        assert_eq!(categories[0].disk_name, category_hash);
+        assert_eq!(categories[0].items[0].display_name, "不死鳥");
+        assert_eq!(categories[0].items[0].disk_name, item_hash);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn copies_sprite_and_icon_files_to_target() {
-        let root = temp_root("copies_sprite_and_icon_files_to_target");
+        let root = temp_root("copies_files_disk_names");
         let item = root.join("public").join("BOSS").join("不死鳥");
         let target = root.join("target");
         fs::create_dir_all(item.join("sprite")).unwrap();

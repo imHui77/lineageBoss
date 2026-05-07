@@ -40,58 +40,76 @@ impl PreviewState {
     }
 
     pub fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(format!("{} - 圖片預覽", self.item_name))
-            .open(open)
-            .resizable(true)
-            .default_size([520.0, 420.0])
-            .show(ctx, |ui| {
-                if self.paths.is_empty() {
-                    ui.label("未找到圖片檔案");
-                    return;
-                }
+        let viewport_id = egui::ViewportId::from_hash_of(("preview", &self.item_name));
+        let title = format!("{} - 圖片預覽", self.item_name);
 
-                self.ensure_loaded(ctx);
+        let mut should_close = false;
 
-                ui.horizontal(|ui| {
-                    if ui
-                        .add_enabled(self.paths.len() > 1, egui::Button::new("上一張"))
-                        .clicked()
-                    {
-                        self.previous();
+        ctx.show_viewport_immediate(
+            viewport_id,
+            egui::ViewportBuilder::default()
+                .with_title(&title)
+                .with_inner_size([560.0, 460.0])
+                .with_min_inner_size([320.0, 240.0]),
+            |ctx, _class| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    if self.paths.is_empty() {
+                        ui.label("未找到圖片檔案");
+                        return;
                     }
 
-                    ui.label(format!(
-                        "第 {} 張 / 共 {} 張",
-                        self.index + 1,
-                        self.paths.len()
-                    ));
+                    self.ensure_loaded(ctx);
 
-                    if ui
-                        .add_enabled(self.paths.len() > 1, egui::Button::new("下一張"))
-                        .clicked()
-                    {
-                        self.next();
+                    ui.horizontal(|ui| {
+                        if ui
+                            .add_enabled(self.paths.len() > 1, egui::Button::new("上一張"))
+                            .clicked()
+                        {
+                            self.previous();
+                        }
+
+                        ui.label(format!(
+                            "第 {} 張 / 共 {} 張",
+                            self.index + 1,
+                            self.paths.len()
+                        ));
+
+                        if ui
+                            .add_enabled(self.paths.len() > 1, egui::Button::new("下一張"))
+                            .clicked()
+                        {
+                            self.next();
+                        }
+                    });
+
+                    ui.separator();
+
+                    if let Some(error) = &self.error {
+                        ui.colored_label(egui::Color32::RED, error);
+                        return;
                     }
+
+                    if self.frames.is_empty() {
+                        ui.label("載入中...");
+                        return;
+                    }
+
+                    self.advance_animation(ctx);
+                    let frame = &self.frames[self.frame_index];
+                    let available = ui.available_size();
+                    let display_size = fit_size(frame.size, available);
+                    ui.add(egui::Image::new((frame.texture.id(), display_size)));
                 });
 
-                ui.separator();
-
-                if let Some(error) = &self.error {
-                    ui.colored_label(egui::Color32::RED, error);
-                    return;
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    should_close = true;
                 }
+            },
+        );
 
-                if self.frames.is_empty() {
-                    ui.label("載入中...");
-                    return;
-                }
-
-                self.advance_animation(ctx);
-                let frame = &self.frames[self.frame_index];
-                let available = ui.available_size();
-                let display_size = fit_size(frame.size, available);
-                ui.add(egui::Image::new((frame.texture.id(), display_size)));
-            });
+        if should_close {
+            *open = false;
+        }
     }
 
     fn previous(&mut self) {
