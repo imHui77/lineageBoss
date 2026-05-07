@@ -1,8 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod app;
-mod file_ops;
-mod preview;
+use lineage_boss_visualization::app;
 
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions {

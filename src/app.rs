@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use eframe::egui;
 
@@ -6,6 +7,36 @@ use crate::{
     file_ops::{self, Category},
     preview::PreviewState,
 };
+
+fn install_cjk_font(ctx: &egui::Context) {
+    let candidates = [
+        r"C:\Windows\Fonts\msjh.ttc",
+        r"C:\Windows\Fonts\msyh.ttc",
+        r"C:\Windows\Fonts\simsun.ttc",
+    ];
+
+    let Some(bytes) = candidates.iter().find_map(|p| std::fs::read(p).ok()) else {
+        return;
+    };
+
+    let mut fonts = egui::FontDefinitions::default();
+    let mut data = egui::FontData::from_owned(bytes);
+    data.index = 0;
+    fonts.font_data.insert("cjk".to_owned(), Arc::new(data));
+
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, "cjk".to_owned());
+    fonts
+        .families
+        .entry(egui::FontFamily::Monospace)
+        .or_default()
+        .push("cjk".to_owned());
+
+    ctx.set_fonts(fonts);
+}
 
 pub struct LineageBossApp {
     root_dir: PathBuf,
@@ -32,7 +63,9 @@ struct StatusMessage {
 }
 
 impl LineageBossApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        install_cjk_font(&cc.egui_ctx);
+
         let root_dir = file_ops::default_resource_root();
         let categories = file_ops::scan_categories(&root_dir);
         let active_tab = if categories.is_empty() {
@@ -143,7 +176,7 @@ impl LineageBossApp {
             for category_index in 0..self.categories.len() {
                 let selected = self.active_tab == Tab::Category(category_index);
                 if ui
-                    .selectable_label(selected, &self.categories[category_index].name)
+                    .selectable_label(selected, &self.categories[category_index].display_name)
                     .clicked()
                 {
                     self.active_tab = Tab::Category(category_index);
@@ -170,7 +203,8 @@ impl LineageBossApp {
             return;
         };
 
-        let mut preview_item = None;
+        let category_disk = category.disk_name.clone();
+        let mut preview_request = None;
         egui::ScrollArea::vertical().show(ui, |ui| {
             egui::Grid::new(format!("category_grid_{index}"))
                 .num_columns(4)
@@ -178,9 +212,13 @@ impl LineageBossApp {
                 .show(ui, |ui| {
                     for (item_index, item) in category.items.iter_mut().enumerate() {
                         ui.horizontal(|ui| {
-                            ui.checkbox(&mut item.checked, &item.name);
+                            ui.checkbox(&mut item.checked, &item.display_name);
                             if item.has_images && ui.small_button("[S]").clicked() {
-                                preview_item = Some(item.name.clone());
+                                preview_request = Some((
+                                    item.display_name.clone(),
+                                    item.disk_name.clone(),
+                                    category_disk.clone(),
+                                ));
                             }
                         });
 
@@ -191,19 +229,19 @@ impl LineageBossApp {
                 });
         });
 
-        if let Some(item_name) = preview_item {
-            self.open_preview(item_name);
+        if let Some((display, item_disk, category_disk)) = preview_request {
+            self.open_preview(display, item_disk, category_disk);
         }
     }
 
-    fn open_preview(&mut self, item_name: String) {
-        let paths = file_ops::image_paths_for_item(&self.root_dir, &self.categories, &item_name);
+    fn open_preview(&mut self, display: String, item_disk: String, category_disk: String) {
+        let paths = file_ops::image_paths_for_item(&self.root_dir, &category_disk, &item_disk);
         if paths.is_empty() {
-            self.status = StatusMessage::error(format!("在 {item_name} 中未找到圖片檔案"));
+            self.status = StatusMessage::error(format!("在 {display} 中未找到圖片檔案"));
             return;
         }
 
-        self.preview = Some(PreviewState::new(item_name, paths));
+        self.preview = Some(PreviewState::new(display, paths));
     }
 
     fn set_all(&mut self, checked: bool) {
@@ -222,13 +260,13 @@ impl LineageBossApp {
                     .items
                     .iter()
                     .filter(|item| item.checked)
-                    .map(|item| item.name.clone())
+                    .map(|item| item.disk_name.clone())
                     .collect::<Vec<_>>();
 
                 if items.is_empty() {
                     None
                 } else {
-                    Some((category.name.clone(), items))
+                    Some((category.disk_name.clone(), items))
                 }
             })
             .collect()
