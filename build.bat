@@ -3,44 +3,58 @@ setlocal enabledelayedexpansion
 
 cd /d "%~dp0"
 
+set "APP_NAME=LineageBossVisualization"
+set "BIN_NAME=lineage_boss_visualization.exe"
+set "OUT_DIR=dist\%APP_NAME%"
 set "DO_ZIP=0"
 if /i "%~1"=="release" set "DO_ZIP=1"
 
 echo ========================================
-echo   LineageBossVisualization Build
+echo   %APP_NAME% Rust Build
 echo ========================================
 echo.
 
-echo [1/3] Cleaning old dist (antivirus may delay file release)...
-if exist "build" rmdir /s /q "build" 2>nul
+echo [1/4] Cleaning old dist...
+if exist "%OUT_DIR%" rmdir /s /q "%OUT_DIR%" 2>nul
 if exist "dist\*.zip" del /q "dist\*.zip" 2>nul
-call :clean_dist
+mkdir "%OUT_DIR%"
 if errorlevel 1 (
-    echo.
-    echo ERROR: Cannot delete dist\LineageBossVisualization after retries.
-    echo   Close any Explorer window showing dist\, wait for antivirus scan,
-    echo   or reboot if persistent. Then rerun build.bat.
+    echo ERROR: Cannot create %OUT_DIR%.
     pause
     exit /b 1
 )
 
-echo [2/3] Running PyInstaller...
-echo.
-call pipenv run python -m PyInstaller --noconfirm LineageBossVisualization.spec
+echo [2/4] Running cargo build --release...
+cargo build --release
 if errorlevel 1 (
     echo.
-    echo ERROR: PyInstaller build failed.
+    echo ERROR: Cargo build failed.
     pause
     exit /b 1
+)
+
+echo [3/4] Copying executable and resources...
+copy /y "target\release\%BIN_NAME%" "%OUT_DIR%\%APP_NAME%.exe" >nul
+if errorlevel 1 (
+    echo ERROR: Cannot copy release executable.
+    pause
+    exit /b 1
+)
+
+if exist "pubilc" (
+    xcopy /e /i /y "pubilc" "%OUT_DIR%\pubilc" >nul
+) else if exist "public" (
+    xcopy /e /i /y "public" "%OUT_DIR%\public" >nul
+) else (
+    echo WARNING: No pubilc or public resource folder found.
 )
 
 if "!DO_ZIP!"=="1" (
-    echo.
-    echo [3/3] Creating release zip...
+    echo [4/4] Creating release zip...
     for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "BUILD_DATE=%%i"
-    set "ZIP_NAME=LineageBossVisualization-!BUILD_DATE!.zip"
+    set "ZIP_NAME=%APP_NAME%-!BUILD_DATE!.zip"
     pushd dist
-    tar -a -c -f "!ZIP_NAME!" LineageBossVisualization
+    tar -a -c -f "!ZIP_NAME!" "%APP_NAME%"
     set "TAR_RC=!errorlevel!"
     popd
     if not "!TAR_RC!"=="0" (
@@ -48,6 +62,8 @@ if "!DO_ZIP!"=="1" (
         pause
         exit /b 1
     )
+) else (
+    echo [4/4] Skipping zip. Run "build.bat release" to create one.
 )
 
 echo.
@@ -55,24 +71,7 @@ echo ========================================
 echo   Build complete
 echo ========================================
 echo.
-echo EXE: dist\LineageBossVisualization\LineageBossVisualization.exe
-if "!DO_ZIP!"=="1" (
-    echo ZIP: dist\!ZIP_NAME!
-) else (
-    echo Tip: run "build.bat release" to also generate a release zip.
-)
+echo EXE: %OUT_DIR%\%APP_NAME%.exe
+if "!DO_ZIP!"=="1" echo ZIP: dist\!ZIP_NAME!
 echo.
 if not "%~2"=="nopause" pause
-exit /b 0
-
-:clean_dist
-set "RETRIES=0"
-:clean_loop
-if not exist "dist\LineageBossVisualization" exit /b 0
-rmdir /s /q "dist\LineageBossVisualization" 2>nul
-if not exist "dist\LineageBossVisualization" exit /b 0
-set /a RETRIES+=1
-if !RETRIES! geq 10 exit /b 1
-echo   ... retry !RETRIES!/10 (waiting 3s for file handles to release)
-ping -n 4 127.0.0.1 >nul
-goto :clean_loop

@@ -1,137 +1,110 @@
-# 天堂BOSS明顯化 - 編譯指南
+# 天堂BOSS明顯化 - Rust 編譯指南
 
 ## 環境需求
-- Python 3.10+
-- pipenv 或 pip
-- Windows 10+ (目標平台)
+- Rust 1.94+
+- Cargo
+- Windows 10+（目標平台）
 
-## 安裝依賴套件
+## 安裝 Rust
 
-### 使用 pipenv (推薦)
-```bash
-pipenv install
-pipenv shell
+請使用 rustup 安裝：
+
+```powershell
+winget install Rustlang.Rustup
 ```
 
-### 使用 pip
+安裝後確認版本：
+
 ```bash
-pip install pyinstaller pillow
+rustc --version
+cargo --version
 ```
 
-## 編譯成 exe 檔案
+## 開發指令
 
-### 基本編譯指令
+### 格式化
 ```bash
-python -m PyInstaller --onefile --windowed --add-data "pubilc;pubilc" --name "LineageBossVisualization" main.py
+cargo fmt
 ```
 
-### 參數說明
-- `--onefile`: 打包成單一exe檔案
-- `--windowed`: 不顯示命令列視窗 (GUI應用程式)
-- `--add-data "pubilc;pubilc"`: 包含pubilc資料夾（包含所有類別）到exe中
-- `--name "LineageBossVisualization"`: 指定輸出檔案名稱
-
-### 進階選項 (可選)
-如果需要自訂圖示：
+### 測試
 ```bash
-python -m PyInstaller --onefile --windowed --add-data "pubilc;pubilc" --add-data "img;img" --icon=img/BOSS.png --name "LineageBossVisualization" main.py
+cargo test
 ```
 
-## 編譯流程
+### 本機執行
+```bash
+cargo run
+```
 
-1. **準備環境**
-   ```bash
-   cd I:\GitHub\lineageBoss
-   ```
+## 編譯成 exe
 
-2. **安裝 PyInstaller**
-   ```bash
-   python -m pip install pyinstaller
-   ```
+### 基本編譯
+```bash
+cargo build --release
+```
 
-3. **執行編譯**
-   ```bash
-   python -m PyInstaller --onefile --windowed --add-data "pubilc;pubilc" --name "LineageBossVisualization" main.py
-   ```
+輸出位置：
 
-4. **檢查結果**
-   編譯完成後，exe檔案會在 `dist/` 資料夾中：
-   ```
-   dist/LineageBossVisualization.exe
-   ```
+```text
+target/release/lineage_boss_visualization.exe
+```
 
-## 檔案結構說明
+### 使用 build.bat
 
-編譯時會包含以下資料夾：
-- `pubilc/`: 包含所有類別的資料夾
-  - `pubilc/BOSS/`: 包含所有BOSS的圖像檔案 (.spr格式)
-  - `pubilc/skills/`: 包含所有技能的圖像檔案
-  - `pubilc/other/`: 包含其他類別的圖像檔案
-  - `pubilc/XX/`: 你新增的任何其他類別
-- `img/`: 程式界面用的圖片資源 (可選)
+`build.bat` 會清理舊輸出、執行 release 編譯，並把 exe 複製到：
+
+```text
+dist/LineageBossVisualization/LineageBossVisualization.exe
+```
+
+執行：
+
+```bat
+build.bat
+```
+
+同時建立 zip：
+
+```bat
+build.bat release
+```
+
+## 資源資料夾
+
+Rust 版不再使用 PyInstaller 打包資源。請將 `pubilc/` 或 `public/` 放在 exe 同一層：
+
+```text
+dist/
+└── LineageBossVisualization/
+    ├── LineageBossVisualization.exe
+    └── pubilc/
+        ├── BOSS/
+        ├── skills/
+        └── other/
+```
+
+程式啟動時會優先找 `pubilc/`，找不到時改找 `public/`。
 
 ## 支援的檔案類型
 
-程式支援兩種類型的檔案複製：
+1. Sprite 檔案 `.spr`
+   - 來源：`項目/sprite/`
+   - 目標：天堂遊戲的 `sprite/`
 
-1. **Sprite 檔案 (.spr)**
-   - 來源：`項目/sprite/` 資料夾
-   - 目標：天堂遊戲的 `sprite/` 資料夾
-   - 用途：遊戲精靈圖像
+2. Icon 檔案 `.tbt`
+   - 來源：`項目/icon/`
+   - 目標：天堂遊戲的 `icon/`
 
-2. **Icon 檔案 (.tbt)**
-   - 來源：`項目/icon/` 資料夾  
-   - 目標：天堂遊戲的 `icon/` 資料夾
-   - 用途：遊戲圖示檔案
+3. 預覽圖片
+   - PNG、JPG、JPEG、GIF、BMP、WEBP
 
-### 項目資料夾結構範例：
-```
-pubilc/
-├── BOSS/
-│   ├── 不死鳥/
-│   │   └── sprite/          <- .spr 檔案
-│   └── 伊弗/
-│       └── sprite/          <- .spr 檔案
-├── other/
-│   └── 王族明顯化/
-│       └── icon/            <- .tbt 檔案
-└── skills/
-    ├── 地屏-中文化/
-    │   └── sprite/          <- .spr 檔案
-    └── 汙水-中文化/
-        └── sprite/          <- .spr 檔案
-```
-
-## 注意事項
-
-1. **管理員權限**: PyInstaller可能會顯示不需要管理員權限的警告，這是正常的
-2. **檔案大小**: 由於包含大量圖像資源，最終exe檔案會比較大
-3. **Windows Defender**: 首次執行時可能被防毒軟體標記，這是正常現象
-4. **相容性**: 編譯的exe檔案適用於Windows 10+系統
-
-## 清理編譯檔案
-
-編譯後會產生以下資料夾，可以安全刪除：
-- `build/`: 編譯過程中的暫存檔案
-- `*.spec`: PyInstaller規格檔案
-- `__pycache__/`: Python快取檔案
+## 清理
 
 ```bash
-# 清理指令 (可選)
-rmdir /S build
-del *.spec
+cargo clean
 ```
 
-## 疑難排解
-
-### 編譯超時
-如果編譯過程超時，可以嘗試：
-1. 關閉防毒軟體暫時掃描
-2. 使用較少的資源檔案進行測試
-3. 增加timeout時間
-
-### 執行時找不到檔案
-確保所有資源檔案都正確包含在 `--add-data` 參數中
-
-### 中文檔名問題
-建議使用英文檔名避免編碼問題，如範例中的 `LineageBossVisualization`
+或刪除：
+- `target/`
+- `dist/`
